@@ -12,5 +12,5 @@ from torch.nn import CrossEntropyLoss
 import pdb
 from tqdm import tqdm
 
-dataset = load_dataset('lukaemon/mmlu', 'college_physics', split='train[:20]')
+dataset = load_dataset('hellaswag',split='validation[:20]')
 pdb.set_trace()

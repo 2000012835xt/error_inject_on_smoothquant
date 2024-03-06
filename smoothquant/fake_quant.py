@@ -143,6 +143,7 @@ class NoisyW8A8Linear(W8A8Linear):
         result_injected=result
 
         flip_bit=30
+        # pdb.set_trace()
         err=torch.tensor([2**flip_bit],dtype=torch.int32).to(result.device)
         prob_tensor=torch.full(result.shape, err_prob).to(result.device)
         mask=torch.bernoulli(prob_tensor).bool().to(result.device)
@@ -166,10 +167,12 @@ class NoisyW8A8Linear(W8A8Linear):
             y_injected=y_injected + self.bias
 
         if self.output_quant_name== "None":
-            q_y = self.output_quant(y_for_quant)  
+            q_y = self.output_quant(y_injected)  
+            # q_y = torch.clamp(q_y,-32768,32768) ## avoid overfitting of float16
         else:
             _, out_scale = self.output_quant(y_for_quant)  
             q_y=torch.clamp(torch.round(y_injected/out_scale),-127,127)*out_scale ## quant according to out_scale
+        # pdb.set_trace()
         return q_y
 
     @staticmethod
@@ -261,18 +264,19 @@ class NoisyW8A8BMM(W8A8BMM):
     
     @torch.no_grad()
     def forward(self, input1, input2):
-        # pdb.set_trace()
         q_input1, input1_scale = self.act_quant(input1)
         q_input2, input2_scale = self.act_quant(input2)
         y = torch.bmm(q_input1, q_input2)
-        # y_injected=self.inject_error(y,input1_scale,input2_scale,self.err_prob)
-        y_injected = y
+        y_clone=y.clone()
+        y_injected=self.inject_error(y_clone,input1_scale,input2_scale,self.err_prob)
+        # y_injected = y
         
         if self.output_quant_name== "None":
             q_y = self.output_quant(y_injected)
+            # q_y = torch.clamp(q_y,-32768,32768) ## avoid overfitting of float16
         else:
             _, out_scale = self.output_quant(y)
-            q_y=torch.clamp(torch.round(y_injected/out_scale),-127,127)*out_scale ## quant according to out_scale
+            q_y=torch.clamp(torch.round(y_injected/out_scale),-127,127)*out_scale ## quant according to out_scale    
             # q_y, _ = self.output_quant(y)
         return q_y
     
